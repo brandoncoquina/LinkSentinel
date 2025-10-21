@@ -1,7 +1,7 @@
 # LinkSentinel
 
 > Keep your WordPress site healthy by finding and fixing redirected or broken **internal links**—automatically.
-
+**Feel free to donate to us! We're still in starup mode 🚀 [ko-fi.com/coquinaworks](https://www.ko-fi.com/coquinaworks)**
 [![License: GPLv2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](#license)  
 **Stable tag:** 1.8.7 · **Requires WP:** 5.8+ · **Tested up to:** 6.9 · **Requires PHP:** 7.4+
 
@@ -115,5 +115,4 @@ GPLv2 or later. See `LICENSE` for details.
 
 ### Notes
 - WordPress® is a trademark of the WordPress Foundation.
-- The screenshot and banner paths above assume the images live in your repo (e.g., `/banner-1544x500.jpg`). Adjust as needed.
 
