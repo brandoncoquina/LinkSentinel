@@ -106,7 +106,7 @@ PRs and issues are welcome! If you’re proposing a larger change, please start 
 ---
 
 ## Support the project
-If LinkSentinel saves you time, consider supporting development via Ko‑fi.
+If LinkSentinel saves you time, consider supporting development via [ko-fi](https://www.ko-fi.com/coquinaworks).
 
 ---
 
