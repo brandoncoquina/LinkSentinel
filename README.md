@@ -3,7 +3,7 @@
 > Keep your WordPress site healthy by finding and fixing redirected or broken **internal links**—automatically.
 
 [![License: GPLv2+](https://img.shields.io/badge/License-GPLv2%2B-blue.svg)](#license)  
-**Stable tag:** 1.8.7 · **Requires WP:** 5.8+ · **Tested up to:** 6.9 · **Requires PHP:** 7.4+
+**Stable tag:** 3.0 Lite RC · **Requires WP:** 5.8+ · **Tested up to:** 6.9 · **Requires PHP:** 7.4+
 
 **Feel free to donate to us! We're still in starup mode 🚀 [ko-fi.com/coquinaworks](https://www.ko-fi.com/coquinaworks)**
 
