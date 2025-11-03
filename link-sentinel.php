@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LinkSentinel
  * Description:       Scan internal links for redirects & breakage. Auto‑fix 301/308 permanently redirected links; queue 302/307 and broken links for review. Includes a dashboard with progress indicators, last scan metadata and a CSV export for resolved links.
- * Version:           3.0 Lite RC
+ * Version:           3.1 Lite
  * Author:            Pragmatic Bear
  * Author URI:        https://www.pragmaticbear.com
  * Requires at least: 5.8
@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || die( 'No direct access allowed.' );
 // Define a version constant for internal use.  This value should match the
 // version header above and must be updated on each release.
 if ( ! defined( 'RFX_VERSION' ) ) {
-    define( 'RFX_VERSION', '3.0-lite-rc' );
+    define( 'RFX_VERSION', '3.1-lite' );
 }
 
 if ( ! defined( 'RFX_DB_VERSION' ) ) {
