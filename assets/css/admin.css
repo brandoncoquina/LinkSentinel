@@ -1,0 +1,36 @@
+/*
+ * Admin styles for LinkSentinel.
+ *
+ * Keep custom styles scoped so they do not interfere with the core
+ * WordPress admin UI.  These are intentionally minimal; more complex
+ * styling should live in a build pipeline (e.g., compiled Sass/Tailwind).
+ */
+
+#rfx-scan-status .spinner {
+    margin-top: 0;
+}
+
+#rfx-scan-progress {
+    transition: width 0.3s ease;
+}
+
+/*
+ * Wrap long URLs and other code blocks in our plugin tables so they do not
+ * overflow or overlap other columns.  Use a scoped selector to avoid
+ * affecting core admin pages.  The `word-break: break-all` rule allows
+ * uninterrupted strings (e.g. URLs) to wrap mid-word; `overflow-wrap: anywhere`
+ * provides a fallback across modern browsers.
+ */
+#rfx-dashboard-tabs code {
+    /* Allow code blocks (URLs) to wrap nicely within table cells without
+     * overlapping adjacent cells.  Break long strings mid-word and let
+     * browsers wrap as needed.  Display each code snippet as a block to
+     * ensure adequate vertical spacing and prevent text clipping.  The
+     * padding adds a little breathing room inside the cell.  
+     */
+    white-space: normal;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    display: block;
+    padding: 2px 4px;
+}
