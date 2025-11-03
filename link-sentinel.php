@@ -205,120 +205,111 @@ function rfx_is_internal_link( $url ) {
         return false;
     }
 
+    // Handle protocol-relative URLs by adding the current scheme.
     if ( 0 === strpos( $url, '//' ) ) {
         $url = ( is_ssl() ? 'https:' : 'http:' ) . $url;
     }
 
+    // Relative paths are always internal.
     if ( isset( $url[0] ) && '/' === $url[0] ) {
         return true;
     }
 
+    // Only process http/https URLs.
     if ( ! preg_match( '#^https?://#i', $url ) ) {
         return false;
     }
 
-    $site_parts          = wp_parse_url( home_url() );
-    $site_host           = is_array( $site_parts ) && ! empty( $site_parts['host'] ) ? $site_parts['host'] : '';
-    $site_scheme         = is_array( $site_parts ) && ! empty( $site_parts['scheme'] ) ? strtolower( $site_parts['scheme'] ) : '';
-    $site_port_explicit  = is_array( $site_parts ) && array_key_exists( 'port', (array) $site_parts );
-    $site_port_value     = $site_port_explicit ? (int) $site_parts['port'] : null;
+    // Parse site and link components.
+    $site_parts = wp_parse_url( home_url() );
+    $link_parts = wp_parse_url( $url );
 
-    $link_parts          = wp_parse_url( $url );
-    $link_host           = is_array( $link_parts ) && ! empty( $link_parts['host'] ) ? $link_parts['host'] : '';
-    $link_scheme         = is_array( $link_parts ) && ! empty( $link_parts['scheme'] ) ? strtolower( $link_parts['scheme'] ) : '';
-    $link_port_explicit  = is_array( $link_parts ) && array_key_exists( 'port', (array) $link_parts );
-    $link_port_value     = $link_port_explicit ? (int) $link_parts['port'] : null;
+    // Extract hosts, schemes, and ports.
+    $site_host   = ! empty( $site_parts['host'] ) ? $site_parts['host'] : '';
+    $site_scheme = ! empty( $site_parts['scheme'] ) ? strtolower( $site_parts['scheme'] ) : '';
+    $site_port   = ! empty( $site_parts['port'] ) ? (int) $site_parts['port'] : null;
 
-    if ( '' === $link_host || '' === $site_host ) {
+    $link_host   = ! empty( $link_parts['host'] ) ? $link_parts['host'] : '';
+    $link_scheme = ! empty( $link_parts['scheme'] ) ? strtolower( $link_parts['scheme'] ) : '';
+    $link_port   = ! empty( $link_parts['port'] ) ? (int) $link_parts['port'] : null;
+
+    // A link can't be internal without a host.
+    if ( empty( $link_host ) || empty( $site_host ) ) {
         return false;
     }
 
-    $hosts = apply_filters( 'rfx_internal_hosts', [ $site_host ] );
-    if ( ! is_array( $hosts ) ) {
-        $hosts = [ $site_host ];
+    // Get a list of all internal hosts.
+    $internal_hosts = apply_filters( 'rfx_internal_hosts', [ $site_host ] );
+    if ( ! is_array( $internal_hosts ) ) {
+        $internal_hosts = [ $site_host ];
     }
-    if ( ! in_array( $site_host, $hosts, true ) ) {
-        $hosts[] = $site_host;
+    if ( ! in_array( $site_host, $internal_hosts, true ) ) {
+        $internal_hosts[] = $site_host;
     }
 
-    $normalize_host = static function ( $host ) {
-        $host = strtolower( (string) $host );
-        if ( '' === $host ) {
-            return '';
-        }
-        if ( 0 === strpos( $host, 'www.' ) ) {
-            $host = substr( $host, 4 );
-        }
-        return $host;
+    // Normalize a host by removing 'www.'
+    $normalize_host = function ( $host ) {
+        return preg_replace( '/^www\./i', '', strtolower( (string) $host ) );
     };
 
-    $normalize_port = static function ( $port, $scheme ) {
-        if ( null === $port ) {
-            if ( 'https' === $scheme ) {
-                return 443;
-            }
-            if ( 'http' === $scheme ) {
-                return 80;
-            }
-            return null;
+    // Normalize a port by providing the default for the scheme.
+    $normalize_port = function ( $port, $scheme ) {
+        if ( null !== $port ) {
+            return (int) $port;
         }
-        return (int) $port;
+        if ( 'https' === $scheme ) {
+            return 443;
+        }
+        if ( 'http' === $scheme ) {
+            return 80;
+        }
+        return null;
     };
 
     $link_host_normalized = $normalize_host( $link_host );
     $site_host_normalized = $normalize_host( $site_host );
 
-    foreach ( $hosts as $candidate ) {
-        $candidate_value = trim( (string) $candidate );
-        if ( '' === $candidate_value ) {
+    // Check against each registered internal host.
+    foreach ( $internal_hosts as $internal_host ) {
+        $internal_host = trim( (string) $internal_host );
+        if ( empty( $internal_host ) ) {
             continue;
         }
 
-        if ( false !== strpos( $candidate_value, '://' ) || 0 === strpos( $candidate_value, '//' ) ) {
-            $candidate_parts = wp_parse_url( $candidate_value );
-        } else {
-            $candidate_parts = wp_parse_url( '//' . ltrim( $candidate_value, '/' ) );
+        $candidate_parts = wp_parse_url( $internal_host );
+        if ( empty( $candidate_parts['host'] ) ) {
+            $candidate_parts = wp_parse_url( '//' . $internal_host );
         }
 
-        $candidate_host          = $candidate_value;
-        $candidate_scheme        = '';
-        $candidate_port_explicit = false;
-        $candidate_port_value    = null;
+        $candidate_host   = ! empty( $candidate_parts['host'] ) ? $candidate_parts['host'] : '';
+        $candidate_scheme = ! empty( $candidate_parts['scheme'] ) ? strtolower( $candidate_parts['scheme'] ) : '';
+        $candidate_port   = ! empty( $candidate_parts['port'] ) ? (int) $candidate_parts['port'] : null;
 
-        if ( is_array( $candidate_parts ) ) {
-            if ( ! empty( $candidate_parts['host'] ) ) {
-                $candidate_host = $candidate_parts['host'];
-            }
-            if ( ! empty( $candidate_parts['scheme'] ) ) {
-                $candidate_scheme = strtolower( $candidate_parts['scheme'] );
-            }
-            if ( array_key_exists( 'port', (array) $candidate_parts ) ) {
-                $candidate_port_explicit = true;
-                $candidate_port_value    = (int) $candidate_parts['port'];
-            }
-        }
-
+        // If the normalized hosts don't match, this isn't an internal link.
         if ( $link_host_normalized !== $normalize_host( $candidate_host ) ) {
             continue;
         }
 
-        $candidate_is_primary = ( $normalize_host( $candidate_host ) === $site_host_normalized );
-        $ports_conflict       = false;
+        $is_primary_host = ( $normalize_host( $candidate_host ) === $site_host_normalized );
 
-        if ( $candidate_port_explicit && $link_port_explicit ) {
-            $ports_conflict = ( $candidate_port_value !== $link_port_value );
-        } elseif ( $candidate_port_explicit && ! $link_port_explicit ) {
-            $expected_port      = $candidate_port_value;
-            $default_link_port  = $normalize_port( null, $link_scheme ?: $candidate_scheme ?: $site_scheme );
-            if ( null !== $default_link_port && $expected_port !== $default_link_port ) {
-                $ports_conflict = true;
+        // If both URLs have explicit ports, they must match.
+        if ( null !== $candidate_port && null !== $link_port ) {
+            if ( $candidate_port !== $link_port ) {
+                continue;
             }
-        } elseif ( ! $candidate_port_explicit && $link_port_explicit && $candidate_is_primary && $site_port_explicit ) {
-            $ports_conflict = ( $link_port_value !== $site_port_value );
         }
-
-        if ( $ports_conflict ) {
-            continue;
+        // If the candidate has an explicit port but the link doesn't, check against the default port for the link's scheme.
+        elseif ( null !== $candidate_port && null === $link_port ) {
+            $default_link_port = $normalize_port( null, $link_scheme ?: $candidate_scheme ?: $site_scheme );
+            if ( null !== $default_link_port && $candidate_port !== $default_link_port ) {
+                continue;
+            }
+        }
+        // If the link has an explicit port but the candidate is the primary host without one, check against the site's port.
+        elseif ( null === $candidate_port && null !== $link_port && $is_primary_host ) {
+            if ( $link_port !== $site_port ) {
+                continue;
+            }
         }
 
         return true;
@@ -577,69 +568,77 @@ function rfx_get_final_destination_url( $url ) {
         'User-Agent' => 'WordPress/LinkSentinel/' . RFX_VERSION,
     ];
 
-    for ( $i = 0; $i < $max_hops; $i++ ) {
-        $resp = wp_remote_head(
-            $current_abs,
-            [
-                'redirection' => 0,
-                'timeout'     => $timeout,
-                'headers'     => $headers,
-            ]
-        );
+    // If we're not following redirects, just get the status of the first hop.
+    if ( $max_hops === 0 ) {
+        $resp = wp_remote_head( $current_abs, [
+            'redirection' => 0,
+            'timeout'     => $timeout,
+            'headers'     => $headers,
+        ] );
+
         if ( is_wp_error( $resp ) ) {
-            $resp = wp_remote_get(
+            return $store_and_return( false );
+        }
+
+        $status_code    = (int) wp_remote_retrieve_response_code( $resp );
+        $status_message = wp_remote_retrieve_response_message( $resp );
+        $first_hop_code = $status_code;
+    } else {
+        // Otherwise, follow redirects up to the max_hops limit.
+        for ( $i = 0; $i < $max_hops; $i++ ) {
+            $resp = wp_remote_head(
                 $current_abs,
                 [
                     'redirection' => 0,
                     'timeout'     => $timeout,
                     'headers'     => $headers,
-                    'body'        => null,
                 ]
             );
+
             if ( is_wp_error( $resp ) ) {
                 return $store_and_return( false );
             }
-        }
 
-        $code           = (int) wp_remote_retrieve_response_code( $resp );
-        $status_message = wp_remote_retrieve_response_message( $resp );
+            $code           = (int) wp_remote_retrieve_response_code( $resp );
+            $status_message = wp_remote_retrieve_response_message( $resp );
 
-        if ( null === $first_hop_code ) {
-            $first_hop_code = $code;
-        }
-
-        if ( $code >= 300 && $code < 400 ) {
-            $loc = wp_remote_retrieve_header( $resp, 'location' );
-            if ( empty( $loc ) ) {
-                $status_code   = $code;
-                $final_url_abs = $current_abs;
-                break;
+            if ( null === $first_hop_code ) {
+                $first_hop_code = $code;
             }
 
-            // Resolve relative redirects against the current URL's host.
-            if ( 0 !== strpos( $loc, 'http://' ) && 0 !== strpos( $loc, 'https://' ) ) {
-                $parsed = wp_parse_url( $current_abs );
-                if ( empty( $parsed['scheme'] ) || empty( $parsed['host'] ) ) {
-                    $final_url_abs = $current_abs;
+            if ( $code >= 300 && $code < 400 ) {
+                $loc = wp_remote_retrieve_header( $resp, 'location' );
+                if ( empty( $loc ) ) {
                     $status_code   = $code;
+                    $final_url_abs = $current_abs;
                     break;
                 }
-                $prefix = $parsed['scheme'] . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' );
-                if ( 0 === strpos( $loc, '/' ) ) {
-                    $current_abs = $prefix . $loc;
-                } else {
-                    $base        = isset( $parsed['path'] ) ? trailingslashit( dirname( $parsed['path'] ) ) : '/';
-                    $current_abs = $prefix . '/' . ltrim( $base . $loc, '/' );
-                }
-            } else {
-                $current_abs = $loc;
-            }
-            continue;
-        }
 
-        $status_code   = $code;
-        $final_url_abs = $current_abs;
-        break;
+                // Resolve relative redirects against the current URL's host.
+                if ( 0 !== strpos( $loc, 'http://' ) && 0 !== strpos( $loc, 'https://' ) ) {
+                    $parsed = wp_parse_url( $current_abs );
+                    if ( empty( $parsed['scheme'] ) || empty( $parsed['host'] ) ) {
+                        $final_url_abs = $current_abs;
+                        $status_code   = $code;
+                        break;
+                    }
+                    $prefix = $parsed['scheme'] . '://' . $parsed['host'] . ( isset( $parsed['port'] ) ? ':' . $parsed['port'] : '' );
+                    if ( 0 === strpos( $loc, '/' ) ) {
+                        $current_abs = $prefix . $loc;
+                    } else {
+                        $base        = isset( $parsed['path'] ) ? trailingslashit( dirname( $parsed['path'] ) ) : '/';
+                        $current_abs = $prefix . '/' . ltrim( $base . $loc, '/' );
+                    }
+                } else {
+                    $current_abs = $loc;
+                }
+                continue;
+            }
+
+            $status_code   = $code;
+            $final_url_abs = $current_abs;
+            break;
+        }
     }
 
     $final_url = $final_url_abs;
@@ -1593,6 +1592,41 @@ add_action( 'wp_ajax_rfx_change_link', 'rfx_ajax_change_link' );
 add_action( 'wp_ajax_rfx_start_scan', 'rfx_ajax_start_scan' );
 
 /**
+ * Admin asset loader.  Only loads on our plugin screen to avoid polluting
+ * unrelated admin pages.
+ */
+function rfx_admin_enqueue_scripts( $hook ) {
+    // Tools screens have hooks like tools_page_link-sentinel.
+    if ( strpos( $hook, 'link-sentinel' ) === false ) {
+        return;
+    }
+
+    /*
+     * Use set_url_scheme() to ensure that our asset URLs match the scheme (HTTP or HTTPS) of the current request.
+     * Without this, browsers running in HTTPS‑only mode may refuse to load http assets, causing console warnings.
+     */
+    $base_url = plugin_dir_url( __FILE__ );
+    $scheme   = is_ssl() ? 'https' : 'http';
+    $base_url = set_url_scheme( $base_url, $scheme );
+    $resolve_all_batch = (int) apply_filters( 'rfx_resolve_all_batch_size', 5 );
+    $resolve_all_batch = max( 1, min( 50, $resolve_all_batch ) );
+    $resolve_all_delay = (int) apply_filters( 'rfx_resolve_all_request_delay_ms', 600 );
+    if ( $resolve_all_delay < 0 ) {
+        $resolve_all_delay = 0;
+    }
+
+    wp_enqueue_script( 'linksentinel-admin', $base_url . 'assets/js/admin-main.js', [ 'jquery' ], RFX_VERSION, true );
+    wp_localize_script( 'linksentinel-admin', 'RFXAdmin', [
+        'ajax_url'            => admin_url( 'admin-ajax.php' ),
+        'nonce'               => wp_create_nonce( 'rfx_start_scan_nonce' ),
+        'resolve_all_batch'   => $resolve_all_batch,
+        'resolve_all_delay'   => $resolve_all_delay,
+    ] );
+    wp_enqueue_style( 'linksentinel-admin',  $base_url . 'assets/css/admin.css', [], RFX_VERSION );
+}
+add_action( 'admin_enqueue_scripts', 'rfx_admin_enqueue_scripts' );
+
+/**
  * AJAX callback to report scan progress.
  */
 function rfx_ajax_scan_status() {
@@ -1755,17 +1789,12 @@ if ( ! class_exists( 'RFX_Resolved_Links_List_Table' ) ) {
                 case 'status_message':
                     return esc_html( $item['status_message'] );
                 case 'resolved_by':
-                    global $wpdb;
                     $uid = isset( $item['resolved_by_user_id'] ) ? (int) $item['resolved_by_user_id'] : 0;
-                    if ( $uid <= 0 && ! empty( $item['id'] ) ) {
-                        $table = $wpdb->prefix . 'rfx_link_monitor';
-                        $uid   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT resolved_by_user_id FROM $table WHERE id = %d", (int) $item['id'] ) );
-                    }
                     if ( $uid > 0 ) {
-                        $u = get_userdata( $uid );
-                        if ( $u ) {
-                            $name = $u->display_name ? $u->display_name : $u->user_login;
-                            $url  = admin_url( 'user-edit.php?user_id=' . $uid );
+                        $user = get_userdata( $uid );
+                        if ( $user ) {
+                            $name = $user->display_name ?: $user->user_login;
+                            $url  = get_edit_user_link( $uid );
                             return sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $name ) );
                         }
                     }
